@@ -20,10 +20,10 @@ declaration: >-
 
 # add as many "url+licence+comment" entries as necessary
 # (or remove it altogether if you haven't used any external assets)
-#assets:
-#  - comment:
-#    url:
-#    licence:
+assets:
+  - comment: Main inspiration is a Japanese comedy sketch where Oreos are interpreted as 'O' being the cookie and 'RE' being the cream.
+    url: https://www.youtube.com/watch?v=L787eU27l7k
+    licence: Fair use
 
 # sign *your* name and uid here
 name: Sheng Koh
