@@ -13,10 +13,10 @@ declaration: >-
 
 # add as many "url+licence+comment" entries as necessary
 # (or remove it altogether if you haven't used any external code)
-#code:
-#  - comment:
-#    url:
-#    licence:
+code:
+  - comment: Used own code to display 'click to continue' message
+    url: https://gitlab.cecs.anu.edu.au/u6949806/comp1720-2021-assignment-2
+    licence: MIT
 
 # add as many "url+licence+comment" entries as necessary
 # (or remove it altogether if you haven't used any external assets)
