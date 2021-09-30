@@ -24,6 +24,14 @@ assets:
   - comment: Main inspiration is a Japanese comedy sketch where Oreos are interpreted as 'O' being the cookie and 'RE' being the cream.
     url: https://www.youtube.com/watch?v=L787eU27l7k
     licence: Fair use
+  
+  - comment: Kick drum sound
+    url: https://freesound.org/people/zimbot/sounds/396585/
+    licence: Attribution 3.0 Unported (CC BY 3.0)
+  
+  - comment: Snare drum sound
+    url: https://freesound.org/people/sandyrb/sounds/38934/
+    licence: Attribution 3.0 Unported (CC BY 3.0)
 
 # sign *your* name and uid here
 name: Sheng Koh

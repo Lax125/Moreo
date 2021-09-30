@@ -1,24 +1,43 @@
 const O = 0, RE = 1;
+
+// Display constants
+const OREO_SCALE = 10;
+const OREO_CONSTRUCTION_ROTATION = 10;
+const BACKGROUND_COLOR = "rgb(46,98,174)";
+
+// Disc drawing constants
 const O_DIAMETER = 18;
 const RE_DIAMETER = 16;
 const O_FILL = "rgb(89,68,59)";
 const O_STROKE = "rgb(45,34,30)";
 const RE_FILL = "rgb(233,229,210)";
 const RE_STROKE = "rgb(117,115,105)";
-
-// Thickness of each disc is 1.0, both in physics and drawing
-// For that reason, scale() must be done before drawing the discs
 const DISC_STROKEWEIGHT = 0.30;
+
+// Disc physics constants
+const GRAVITY = 10;
+const AIR_RESISTANCE = 1;
+const GROUND_RESISTANCE = 7;
+const GROUND_TENSION = 0.2;
+const PHYSICS_FRAMERATE = 60;
+const INITIAL_FALLING_SPEED = 10;
 
 const oreoState = {
   groundedDiscs: {
-    y: 5,
+    y: 0,
     dy: 0,
-    discTypes: [O, RE, O], // This is bloody genius i swear on me mum
+    discTypes: [O],
   },
-  fallingDiscs: [{ y: -5, dy: 0, discType: O }, { y: -7, dy: 0, discType: RE }],
-  flungDiscs: [{ x: 10, z: 10, dx: 0, dz: 0, discType: O }],
+  fallingDiscs: [],
+  flungDiscs: [],
 };
+
+let Osound, REsound;
+
+function preload() {
+  Osound = loadSound("assets/kick.wav");
+  REsound = loadSound("assets/snare.wav");
+}
 
 function setup() {
   // add your setup code here
@@ -27,16 +46,49 @@ function setup() {
 
 function draw() {
   // add your draw code here
-  background(255);
+  background(BACKGROUND_COLOR);
+
   push();
   translate(width / 2, height / 2);
-  scale(10);
-  drawOreoState(mouseY * 90/height);
+  scale(OREO_SCALE);
+  updateOreoState();
+  drawOreoState(OREO_CONSTRUCTION_ROTATION);
   pop();
 }
 
 function updateOreoState() {
   // TODO
+  const groundedDiscCount = oreoState.groundedDiscs.discTypes.length;
+  if (oreoState.fallingDiscs.length > 0) {
+    for (disc of oreoState.fallingDiscs) {
+      disc.dy += GRAVITY/PHYSICS_FRAMERATE;
+      disc.dy *= 1 - AIR_RESISTANCE/PHYSICS_FRAMERATE;
+      disc.y += disc.dy;
+    }
+
+    const lowestFallingDisc = oreoState.fallingDiscs[0];
+
+    if (lowestFallingDisc.y >= oreoState.groundedDiscs.y - groundedDiscCount) {
+      oreoState.groundedDiscs.dy *= groundedDiscCount/(groundedDiscCount + 2);
+      oreoState.groundedDiscs.dy += lowestFallingDisc.dy/(groundedDiscCount + 2);
+      oreoState.groundedDiscs.discTypes.push(lowestFallingDisc.discType);
+      oreoState.fallingDiscs = oreoState.fallingDiscs.slice(1);
+
+      switch(lowestFallingDisc.discType) {
+        case O:
+          Osound.play();
+          break;
+        default:
+          REsound.play();
+      }
+    }
+  }
+  if (oreoState.groundedDiscs.discTypes.length > 0) {
+    const groundedDistFromNeutral = oreoState.groundedDiscs.y - (oreoState.groundedDiscs.discTypes.length - 1)/2;
+    oreoState.groundedDiscs.dy -= GROUND_TENSION*groundedDistFromNeutral/PHYSICS_FRAMERATE;
+    oreoState.groundedDiscs.dy *= 1 - GROUND_RESISTANCE/PHYSICS_FRAMERATE;
+    oreoState.groundedDiscs.y += oreoState.groundedDiscs.dy;
+  }
 }
 
 function drawOreoState(rotation) {
@@ -65,13 +117,13 @@ function drawDisc(discType, x, y, z, rotation) {
   switch (discType) {
     case O:
       discDiameter = O_DIAMETER;
-      fillColor = color(O_FILL);
-      strokeColor = color(O_STROKE);
+      fillColor = O_FILL;
+      strokeColor = O_STROKE;
       break;
     default:
       discDiameter = RE_DIAMETER;
-      fillColor = color(RE_FILL);
-      strokeColor = color(RE_STROKE);
+      fillColor = RE_FILL;
+      strokeColor = RE_STROKE;
   }
 
   translate(x, cos(rotation)*y + sin(rotation)*z);
@@ -92,6 +144,7 @@ function drawDisc(discType, x, y, z, rotation) {
     // Midsection fill
     fill(fillColor);
     noStroke();
+    // +0.2 is used as an epsilon to rid any gaps
     rect(0, 0, discDiameter, cos(rotation)*1.2);
 
     // Bottom and midsection outline
@@ -113,7 +166,22 @@ function flingNextDisc() {
 }
 
 function spawnDisc(discType) {
-  // TODO
+  oreoState.fallingDiscs.push({
+    // attempt to spawn immediately off-screen
+    y: max(((-height/2)/OREO_SCALE - 3)/cos(OREO_CONSTRUCTION_ROTATION), -200), 
+    dy: INITIAL_FALLING_SPEED/PHYSICS_FRAMERATE,
+    discType: discType,
+  });
+}
+
+function clearOreoState() {
+  oreoState.groundedDiscs = {
+    y: 0,
+    dy: INITIAL_FALLING_SPEED/PHYSICS_FRAMERATE,
+    discTypes: [],
+  }
+  oreoState.fallingDiscs = [];
+  oreoState.flungDiscs = [];
 }
 
 // when you hit the spacebar, what's currently on the canvas will be saved (as a
@@ -122,4 +190,17 @@ function keyTyped() {
   if (key === " ") {
     saveCanvas("thumbnail.png");
   }
+  else if (key === ",") {
+    spawnDisc(O);
+  }
+  else if (key === ".") {
+    spawnDisc(RE);
+  }
+  else if (key == "/") {
+    clearOreoState();
+  }
+}
+
+function mousePressed() {
+  getAudioContext().resume();
 }
