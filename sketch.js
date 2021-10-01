@@ -32,13 +32,17 @@ const FLING_DZ = -5;
 
 // Animation constants
 const ROTATION_FRAMES = 60;
-const FLING_PERIOD_FRAMES = 10;
+const FLING_PERIOD_FRAMES = 8;
+const RESET_FRAMES = 60;
+
+// Other constants
+const MAX_DISCS = 30;
 
 const oreoState = {
   groundedDiscs: {
     y: 0,
     dy: 0,
-    discTypes: [O],
+    discTypes: [],
   },
   fallingDiscs: [],
   flungDiscs: [],
@@ -47,18 +51,117 @@ const oreoState = {
 
 let sketchState = "CONSTRUCTING_OREO";
 let sceneScale;
-let Osound, REsound;
+let oSound, reSound;
 let oreoWordFont;
+let oButton1, reButton, oButton2, dunkButton, resetButton;
 
 function preload() {
-  Osound = loadSound("assets/kick.mp3");
-  REsound = loadSound("assets/snare.mp3");
+  oSound = loadSound("assets/kick.mp3");
+  reSound = loadSound("assets/snare.mp3");
+  oSound.setVolume(0.5);
+  reSound.setVolume(0.5);
   oreoWordFont = loadFont("assets/Kanit-Black.ttf");
 }
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   sceneScale = width/100;
+  setupButtons();
+  resetSketch();
+}
+
+function setupButtons() {
+  oButton1 = createButton("O");
+  reButton = createButton("RE");
+  oButton2 = createButton("O");
+  dunkButton = createButton("Dunk?");
+  resetButton = createButton("Again?");
+  for (let button of [oButton1, reButton, oButton2, dunkButton, resetButton]) {
+    button.style("font-family", "Kanit-Black");
+    button.style("font-size", `${width/8}px`);
+    button.style("background-color", "transparent");
+    button.style("border", "none");
+    button.style("color", "white");
+    button.style("padding", "0");
+    button.style("border-radius", `${width/40}px`);
+    button.style("text-shadow", `${width/150}px ${width/150}px 8px #202020`);
+  }
+
+  oButton1.position(width * 0.05,0);
+  reButton.position(width * 0.14,0);
+  oButton2.position(width * 0.295,0);
+
+  for (let oButton of [oButton1, oButton2]) {
+    oButton.mouseOver(() => {oButton.style("color", O_FILL); oButton.style("background-color", "#ffffff20")});
+    oButton.mouseOut(() => {oButton.style("color", "white"); oButton.style("background-color", "transparent")});
+    oButton.mousePressed(() => {
+      oButton.style("padding", `${width/300}px 0 0 ${width/300}px`);
+      oButton.style("text-shadow", `${width/300}px ${width/300}px 4px #202020`);
+      if (canSpawnDisc()) spawnDisc(O);
+    });
+    oButton.mouseReleased(() => {
+      oButton.style("padding", "0");
+      oButton.style("text-shadow", `${width/150}px ${width/150}px 8px #202020`);
+    });
+  }
+  
+  reButton.mouseOver(() => {reButton.style("color", RE_FILL); reButton.style("background-color", "#ffffff20")});
+  reButton.mouseOut(() => {reButton.style("color", "white"); reButton.style("background-color", "transparent")});
+  reButton.mousePressed(() => {
+    reButton.style("padding", `${width/300}px 0 0 ${width/300}px`);
+    reButton.style("text-shadow", `${width/300}px ${width/300}px 4px #202020`);
+    if (canSpawnDisc()) spawnDisc(RE);
+  });
+  reButton.mouseReleased(() => {
+    reButton.style("padding", "0");
+    reButton.style("text-shadow", `${width/150}px ${width/150}px 8px #202020`);
+  });
+
+  dunkButton.style("font-size", `${width/20}px`);
+  dunkButton.style("display", "flex");
+  dunkButton.style("justify-content", "center");
+  dunkButton.style("padding-top", "0");
+  dunkButton.style("width", `${width*0.27}px`);
+  dunkButton.style("height", `${width*0.16}px`);
+  dunkButton.position(width*0.685, height - width * 0.14);
+  dunkButton.mouseOver(() => {dunkButton.style("background-color", "#ffffff20")});
+  dunkButton.mouseOut(() => {dunkButton.style("background-color", "transparent")});
+  dunkButton.mousePressed(() => {
+    dunkButton.style("padding", `${width/300}px 0 0 ${width/300}px`);
+    dunkButton.style("text-shadow", `${width/300}px ${width/300}px 4px #202020`);
+  });
+  dunkButton.mouseReleased(() => {
+    dunkButton.style("padding", "0");
+    dunkButton.style("text-shadow", `${width/150}px ${width/150}px 8px #202020`);
+  });
+  dunkButton.mouseClicked(() => {
+    if (sketchState == "CONSTRUCTING_OREO" & enoughDiscs()) {
+      startRotationAnimation();
+    }
+  });
+
+  resetButton.style("font-size", `${width/20}px`);
+  resetButton.style("display", "flex");
+  resetButton.style("justify-content", "center");
+  resetButton.style("padding-top", "0");
+  resetButton.style("width", `${width*0.27}px`);
+  resetButton.style("height", `${width*0.33}px`);
+  resetButton.position(width*0.685, height - width * 0.34);
+  resetButton.mouseOver(() => {resetButton.style("background-color", "#ffffff20")});
+  resetButton.mouseOut(() => {resetButton.style("background-color", "transparent")});
+  resetButton.mousePressed(() => {
+    resetButton.style("padding", `${width/300}px 0 0 ${width/300}px`);
+    resetButton.style("text-shadow", `${width/300}px ${width/300}px 4px #202020`);
+  });
+  resetButton.mouseReleased(() => {
+    resetButton.style("padding", "0");
+    resetButton.style("text-shadow", `${width/150}px ${width/150}px 8px #202020`);
+  });
+  resetButton.mouseClicked(() => {
+    if (sketchState == "FLINGING_OREO" & doneFlinging()) {
+      startResetAnimation();
+    }
+  });
 }
 
 function draw() {
@@ -67,7 +170,7 @@ function draw() {
   push();
   background(BACKGROUND_COLOR);
 
-  if (sketchState === "FLINGING_OREO") {
+  if (sketchState === "FLINGING_OREO" || sketchState === "RESETTING") {
     drawOreoWord();
   }
 
@@ -87,7 +190,7 @@ function draw() {
       map(transitionProgress, 0, 1, width/2, 0.7*O_DIAMETER*sceneScale),
       map(transitionProgress, 0, 1, height/2, height - 0.7*O_DIAMETER*sceneScale)
     );
-  } else {
+  } else if (sketchState === "FLINGING_OREO") {
     oreoRotation = 90;
     translate(0.7*O_DIAMETER*sceneScale, height - 0.7*O_DIAMETER*sceneScale);
     if ((frameCount - animationFrame0) % FLING_PERIOD_FRAMES === 0) {
@@ -98,29 +201,58 @@ function draw() {
   drawOreoState(oreoRotation);
   pop();
 
-  // Draw glass of milk
+  // Draw glass of milk and update button transparency
   push();
-  let glassAnimationProgress;
+  let glassTransitionProgress;
   if (sketchState == "CONSTRUCTING_OREO") {
-    glassAnimationProgress = 0;
+    glassTransitionProgress = 0;
   }
   else if (sketchState === "ROTATING_OREO") {
     const animationFrameNo = frameCount - animationFrame0;
-    glassAnimationProgress = constrain(map(animationFrameNo, 0, ROTATION_FRAMES, 0, 1), 0, 1);
+    const glassAnimationProgress = constrain(map(animationFrameNo, 0, ROTATION_FRAMES, 0, 1), 0, 1);
+    glassTransitionProgress = sin(90*glassAnimationProgress);
+  }
+  else if (sketchState === "RESETTING") {
+    const animationFrameNo = frameCount - animationFrame0;
+    const glassAnimationProgress = constrain(map(animationFrameNo, 0, RESET_FRAMES, 0, 1), 0, 1);
+    glassTransitionProgress = 1 - sin(90*glassAnimationProgress);
+    if (animationFrameNo > RESET_FRAMES) {
+      resetSketch();
+    }
   }
   else {
-    glassAnimationProgress = 1;
+    glassTransitionProgress = 1;
   }
-  glassTransitionProgress = sin(90*glassAnimationProgress);
 
   const glassY = map(glassTransitionProgress, 0, 1, height + O_DIAMETER*sceneScale, height - 0.1*O_DIAMETER*sceneScale);
   translate(width - O_DIAMETER*sceneScale, glassY);
   scale(sceneScale);
   drawGlass();
+  for (let button of [oButton1, reButton, oButton2]) {
+    button.style("opacity", `${1 - glassTransitionProgress}`);
+  }
   pop();
+
+  if (sketchState === "CONSTRUCTING_OREO" && enoughDiscs()) {
+    dunkButton.style("visibility", "visible");
+    resetButton.style("visibility", "hidden");
+  } else if (sketchState === "FLINGING_OREO" && doneFlinging()) {
+    dunkButton.style("visibility", "hidden");
+    resetButton.style("visibility", "visible");
+  } else {
+    dunkButton.style("visibility", "hidden");
+    resetButton.style("visibility", "hidden");
+  }
 
   if (getAudioContext().state === "suspended") {
     drawSoundInstructions();
+    for (let button of [oButton1, reButton, oButton2, dunkButton, resetButton]) {
+      button.style("visibility", "hidden");
+    }
+  } else {
+    for (let button of [oButton1, reButton, oButton2]) {
+      button.style("visibility", "visible");
+    }
   }
 }
 
@@ -141,7 +273,11 @@ function updateOreoState() {
         oreoState.groundedDiscs.dy += lowestFallingDisc.dy/(groundedDiscCount + 2);
         oreoState.groundedDiscs.discTypes.push(lowestFallingDisc.discType);
         oreoState.fallingDiscs = oreoState.fallingDiscs.slice(1);
+        updateTitle();
         playDisc(lowestFallingDisc.discType);
+        if (oreoState.groundedDiscs.discTypes.length >= MAX_DISCS) {
+          dunkButton.html("Dunk!");
+        }
       }
     }
     if (oreoState.groundedDiscs.discTypes.length > 0) {
@@ -273,18 +409,23 @@ function drawOreoWord() {
   textAlign(CENTER, CENTER);
   textWrap(CHAR);
   textFont(oreoWordFont);
-  fill(255);
-  stroke(23,49,86);
-  textSize(width/15);
+  let textOpacity = 1;
+  if (sketchState === "RESETTING") {
+    textOpacity -= (frameCount - animationFrame0)/RESET_FRAMES;
+  }
+  fill(255, textOpacity*255);
+  stroke(23,49,86, textOpacity*255);
+  textSize(width/12);
+  textLeading(width/16);
   strokeWeight(width/100);
   lines = [""];
   for (syllable of oreoState.dunkedDiscs.map(dt => dt == O ? "O" : "RE")) {
-    if (textWidth(lines[lines.length - 1]) >= 0.7 * width) {
+    if (textWidth(lines[lines.length - 1]) >= 0.5 * width) {
       lines.push("");
     }
     lines[lines.length - 1] += syllable; 
   }
-  text(lines.join("\n"), width/2, height/2);
+  text(lines.join("\n"), width * 0.35, height/2 - (textAscent()*0.2));
   pop();
 }
 
@@ -299,13 +440,25 @@ function drawSoundInstructions() {
   pop();
 }
 
+function updateTitle() {
+  if (oreoState.groundedDiscs.discTypes.length === 0) {
+    document.title = "Moreo - Marcus Koh 2021";
+  } else {
+    let title = "";
+    for (let i = oreoState.groundedDiscs.discTypes.length - 1; i >= 0; i--) {
+      title += oreoState.groundedDiscs.discTypes[i] === O ? "O" : "RE";
+    }
+    document.title = title;
+  }
+}
+
 function playDisc(discType) {
   switch(discType) {
     case O:
-      Osound.play();
+      oSound.play();
       break;
     default:
-      REsound.play();
+      reSound.play();
   }
 }
 
@@ -321,18 +474,34 @@ function flingNextDisc() {
 }
 
 function spawnDisc(discType) {
+  push();
+  angleMode(DEGREES);
   oreoState.fallingDiscs.push({
     // attempt to spawn immediately off-screen
     y: max(((-height/2)/sceneScale - 3)/cos(OREO_CONSTRUCTION_ROTATION), -200), 
     dy: INITIAL_FALLING_SPEED/PHYSICS_FRAMERATE,
     discType: discType,
   });
+  pop();
+}
+
+function canSpawnDisc() {
+  return sketchState === "CONSTRUCTING_OREO" && 
+    oreoState.groundedDiscs.discTypes.length + oreoState.fallingDiscs.length < MAX_DISCS;
+}
+
+function doneFlinging() {
+  return oreoState.groundedDiscs.discTypes.length === 0 & oreoState.flungDiscs.length === 0;
+}
+
+function enoughDiscs() {
+  return oreoState.groundedDiscs.discTypes.length > 0;
 }
 
 function clearOreoState() {
   oreoState.groundedDiscs = {
     y: 0,
-    dy: INITIAL_FALLING_SPEED/PHYSICS_FRAMERATE,
+    dy: 0,
     discTypes: [],
   }
   oreoState.fallingDiscs = [];
@@ -355,9 +524,16 @@ function startFlingingAnimation() {
   animationFrame0 = frameCount + 1;
 }
 
+function startResetAnimation() {
+  sketchState = "RESETTING";
+  animationFrame0 = frameCount + 1;
+}
+
 function resetSketch() {
   clearOreoState();
+  updateTitle();
   sketchState = "CONSTRUCTING_OREO";
+  dunkButton.html("Dunk?");
 }
 
 // when you hit the spacebar, what's currently on the canvas will be saved (as a
@@ -366,22 +542,6 @@ function keyTyped() {
   if (key === " ") {
     saveCanvas("thumbnail.png");
   }
-  else if (key === ",") {
-    spawnDisc(O);
-  }
-  else if (key === ".") {
-    spawnDisc(RE);
-  }
-  else if (key === "s") {
-    startRotationAnimation();
-  }
-  else if (key === "f") {
-    sketchState = "FLINGING_OREO";
-    flingNextDisc();
-  }
-  else if (key === "r") {
-    resetSketch();
-  }
 }
 
 function mousePressed() {
@@ -389,5 +549,17 @@ function mousePressed() {
     getAudioContext().resume();
   }
 
+  return false;
+}
+
+function touchStarted() {
+  return false;
+}
+
+function touchMoved() {
+  return false;
+}
+
+function touchEnded() {
   return false;
 }
