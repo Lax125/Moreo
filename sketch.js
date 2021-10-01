@@ -37,6 +37,27 @@ const RESET_FRAMES = 60;
 
 // Other constants
 const MAX_DISCS = 30;
+const DEMO_OREOS = [
+  [O,RE,O],
+  [O,RE,O,RE,O],
+  [RE,RE,RE,RE,RE],
+  [O,O,O,O,O],
+  [O,RE,O,O],
+  [O,RE,O,RE,RE,RE,O,RE],
+  [O,RE,O,RE,O,RE],
+  [RE,RE,O],
+  [RE,O,RE],
+  [O,RE,RE,RE,RE,RE,RE,RE,RE,O],
+  [O,O,O,RE,RE,RE,RE,RE,RE,O,O,O],
+  [O,RE,RE,RE,RE,O,O,O,O,O,O,O,O,O],
+  [O,O,RE,RE,O,RE,RE,O,O,O,O,RE,RE,O,O,RE,O,O,O,O,RE,RE,RE,RE,RE,O,O,RE,O,RE],
+];
+const DEMO_INITIAL_DROP_PERIOD_FRAMES = 120;
+const DEMO_DROP_PERIOD_FRAMES = 16;
+const DEMO_AFTER_DROP_PERIOD_FRAMES = 100;
+const DEMO_AFTER_DUNK_PERIOD_FRAMES = 150;
+const DEMO_OREO_BUTTON_HOLD_PERIOD_FRAMES = 10;
+const DEMO_STATE_BUTTON_HOLD_PERIOD_FRAMES = 20;
 
 const oreoState = {
   groundedDiscs: {
@@ -54,13 +75,16 @@ let sceneScale;
 let oSound, reSound;
 let oreoWordFont;
 let oButton1, reButton, oButton2, dunkButton, resetButton;
+let demoMode = true;
+let lastDemoKeyframe = 0;
+let demoOreoIndex = 0;
 
 function preload() {
   oSound = loadSound("assets/kick.mp3");
   reSound = loadSound("assets/snare.mp3");
   oSound.setVolume(0.5);
   reSound.setVolume(0.5);
-  oreoWordFont = loadFont("assets/Kanit-Black.ttf");
+  oreoWordFont = loadFont("assets/Kanit-ExtraBold.ttf");
 }
 
 function setup() {
@@ -77,7 +101,7 @@ function setupButtons() {
   dunkButton = createButton("Dunk?");
   resetButton = createButton("Again?");
   for (let button of [oButton1, reButton, oButton2, dunkButton, resetButton]) {
-    button.style("font-family", "Kanit-Black");
+    button.style("font-family", "Kanit-ExtraBold");
     button.style("font-size", `${width/8}px`);
     button.style("background-color", "transparent");
     button.style("border", "none");
@@ -92,30 +116,42 @@ function setupButtons() {
   oButton2.position(width * 0.295,0);
 
   for (let oButton of [oButton1, oButton2]) {
-    oButton.mouseOver(() => {oButton.style("color", O_FILL); oButton.style("background-color", "#ffffff20")});
-    oButton.mouseOut(() => {oButton.style("color", "white"); oButton.style("background-color", "transparent")});
-    oButton.mousePressed(() => {
+    const mOver = () => {oButton.style("color", O_FILL); oButton.style("background-color", "#ffffff20")};
+    const mOut = () => {oButton.style("color", "white"); oButton.style("background-color", "transparent")};
+    const mPressed = () => {
       oButton.style("padding", `${width/300}px 0 0 ${width/300}px`);
       oButton.style("text-shadow", `${width/300}px ${width/300}px 4px #202020`);
       if (canSpawnDisc()) spawnDisc(O);
-    });
-    oButton.mouseReleased(() => {
+    }
+    const mReleased = () => {
       oButton.style("padding", "0");
       oButton.style("text-shadow", `${width/150}px ${width/150}px 8px #202020`);
-    });
+    }
+    oButton.mouseOver(mOver);
+    oButton.mouseOut(mOut);
+    oButton.mousePressed(mPressed);
+    oButton.mouseReleased(mReleased);
+    oButton.simulatePress = () => {mOver(); mPressed()};
+    oButton.simulateRelease = () => {mReleased(); mOut()};
   }
   
-  reButton.mouseOver(() => {reButton.style("color", RE_FILL); reButton.style("background-color", "#ffffff20")});
-  reButton.mouseOut(() => {reButton.style("color", "white"); reButton.style("background-color", "transparent")});
-  reButton.mousePressed(() => {
+  const mOver = () => {reButton.style("color", RE_FILL); reButton.style("background-color", "#ffffff20")};
+  const mOut = () => {reButton.style("color", "white"); reButton.style("background-color", "transparent")};
+  const mPressed = () => {
     reButton.style("padding", `${width/300}px 0 0 ${width/300}px`);
     reButton.style("text-shadow", `${width/300}px ${width/300}px 4px #202020`);
     if (canSpawnDisc()) spawnDisc(RE);
-  });
-  reButton.mouseReleased(() => {
+  }
+  const mReleased = () => {
     reButton.style("padding", "0");
     reButton.style("text-shadow", `${width/150}px ${width/150}px 8px #202020`);
-  });
+  }
+  reButton.mouseOver(mOver);
+  reButton.mouseOut(mOut);
+  reButton.mousePressed(mPressed);
+  reButton.mouseReleased(mReleased);
+  reButton.simulatePress = () => {mOver(); mPressed()};
+  reButton.simulateRelease = () => {mReleased(); mOut()};
 
   dunkButton.style("font-size", `${width/20}px`);
   dunkButton.style("display", "flex");
@@ -124,21 +160,28 @@ function setupButtons() {
   dunkButton.style("width", `${width*0.27}px`);
   dunkButton.style("height", `${width*0.16}px`);
   dunkButton.position(width*0.685, height - width * 0.14);
-  dunkButton.mouseOver(() => {dunkButton.style("background-color", "#ffffff20")});
-  dunkButton.mouseOut(() => {dunkButton.style("background-color", "transparent")});
-  dunkButton.mousePressed(() => {
+
+  const mOverD = () => {dunkButton.style("background-color", "#ffffff20")};
+  const mOutD = () => {dunkButton.style("background-color", "transparent")};
+  const mPressedD = () => {
     dunkButton.style("padding", `${width/300}px 0 0 ${width/300}px`);
     dunkButton.style("text-shadow", `${width/300}px ${width/300}px 4px #202020`);
-  });
-  dunkButton.mouseReleased(() => {
+  };
+  const mReleasedD = () => {
     dunkButton.style("padding", "0");
     dunkButton.style("text-shadow", `${width/150}px ${width/150}px 8px #202020`);
-  });
+  }
+  dunkButton.mouseOver(mOverD);
+  dunkButton.mouseOut(mOutD);
+  dunkButton.mousePressed(mPressedD);
+  dunkButton.mouseReleased(mReleasedD);
   dunkButton.mouseClicked(() => {
     if (sketchState == "CONSTRUCTING_OREO" & enoughDiscs()) {
       startRotationAnimation();
     }
   });
+  dunkButton.simulatePress = () => {mOverD(); mPressedD()};
+  dunkButton.simulateRelease = () => {mReleasedD(); mOutD()};
 
   resetButton.style("font-size", `${width/20}px`);
   resetButton.style("display", "flex");
@@ -147,24 +190,32 @@ function setupButtons() {
   resetButton.style("width", `${width*0.27}px`);
   resetButton.style("height", `${width*0.33}px`);
   resetButton.position(width*0.685, height - width * 0.34);
-  resetButton.mouseOver(() => {resetButton.style("background-color", "#ffffff20")});
-  resetButton.mouseOut(() => {resetButton.style("background-color", "transparent")});
-  resetButton.mousePressed(() => {
+  
+  const mOverR = () => {resetButton.style("background-color", "#ffffff20")};
+  const mOutR = () => {resetButton.style("background-color", "transparent")};
+  const mPressedR = () => {
     resetButton.style("padding", `${width/300}px 0 0 ${width/300}px`);
     resetButton.style("text-shadow", `${width/300}px ${width/300}px 4px #202020`);
-  });
-  resetButton.mouseReleased(() => {
+  };
+  const mReleasedR = () => {
     resetButton.style("padding", "0");
     resetButton.style("text-shadow", `${width/150}px ${width/150}px 8px #202020`);
-  });
+  }
+  resetButton.mouseOver(mOverR);
+  resetButton.mouseOut(mOutR);
+  resetButton.mousePressed(mPressedR);
+  resetButton.mouseReleased(mReleasedR);
   resetButton.mouseClicked(() => {
     if (sketchState == "FLINGING_OREO" & doneFlinging()) {
       startResetAnimation();
     }
   });
+  resetButton.simulatePress = () => {mOverR(); mPressedR()};
+  resetButton.simulateRelease = () => {mReleasedR(); mOutR()};
 }
 
 function draw() {
+  if (demoMode) updateDemo();
   updateOreoState();
 
   push();
@@ -236,22 +287,64 @@ function draw() {
   if (sketchState === "CONSTRUCTING_OREO" && enoughDiscs()) {
     dunkButton.style("visibility", "visible");
     resetButton.style("visibility", "hidden");
-  } else if (sketchState === "FLINGING_OREO" && doneFlinging()) {
+  }
+  else if (sketchState === "FLINGING_OREO" && doneFlinging()) {
     dunkButton.style("visibility", "hidden");
     resetButton.style("visibility", "visible");
-  } else {
+  }
+  else {
     dunkButton.style("visibility", "hidden");
     resetButton.style("visibility", "hidden");
   }
+}
 
-  if (getAudioContext().state === "suspended") {
-    drawSoundInstructions();
-    for (let button of [oButton1, reButton, oButton2, dunkButton, resetButton]) {
-      button.style("visibility", "hidden");
+function updateDemo() {
+  const demoFrame = frameCount - lastDemoKeyframe;
+  if (sketchState === "CONSTRUCTING_OREO") {
+    const droppedDiscCount = oreoState.groundedDiscs.discTypes.length + oreoState.fallingDiscs.length;
+    const demoOreo = DEMO_OREOS[demoOreoIndex];
+
+    if (demoFrame === DEMO_OREO_BUTTON_HOLD_PERIOD_FRAMES && droppedDiscCount > 0) {
+      for (let button of [oButton1, reButton, oButton2]) {
+        button.simulateRelease();
+      }
     }
-  } else {
-    for (let button of [oButton1, reButton, oButton2]) {
-      button.style("visibility", "visible");
+
+    if (droppedDiscCount === demoOreo.length) {
+      if (demoFrame === DEMO_AFTER_DROP_PERIOD_FRAMES - DEMO_STATE_BUTTON_HOLD_PERIOD_FRAMES) {
+        dunkButton.simulatePress();
+      }
+      else if (demoFrame >= DEMO_AFTER_DROP_PERIOD_FRAMES) {
+        dunkButton.simulateRelease();
+        startRotationAnimation();
+        for (let button of [oButton1, reButton, oButton2]) {
+          button.simulateRelease();
+        }
+      }
+    } else {
+      const shouldDropNextDisc = demoFrame >= (droppedDiscCount ? DEMO_DROP_PERIOD_FRAMES : DEMO_INITIAL_DROP_PERIOD_FRAMES);
+      if (shouldDropNextDisc) {
+        const demoOreo = DEMO_OREOS[demoOreoIndex];
+        if (demoOreo[demoOreo.length - droppedDiscCount - 1] === O) {
+          const oButtonToPress = (random() < 1/2) ? oButton1 : oButton2;
+          oButtonToPress.simulatePress();
+        }
+        else {
+          reButton.simulatePress();
+        }
+        lastDemoKeyframe = frameCount;
+      }
+    }
+  }
+  else if (sketchState === "FLINGING_OREO" && doneFlinging()) {
+    if (demoFrame === DEMO_AFTER_DUNK_PERIOD_FRAMES - DEMO_STATE_BUTTON_HOLD_PERIOD_FRAMES) {
+      resetButton.simulatePress();
+    }
+    else if (demoFrame >= DEMO_AFTER_DUNK_PERIOD_FRAMES) {
+      resetButton.simulateRelease();
+      startResetAnimation();
+      demoOreoIndex += 1;
+      demoOreoIndex %= DEMO_OREOS.length;
     }
   }
 }
@@ -299,6 +392,9 @@ function updateOreoState() {
       playDisc(oreoState.flungDiscs[0].discType);
       oreoState.dunkedDiscs.push(oreoState.flungDiscs[0].discType);
       oreoState.flungDiscs = oreoState.flungDiscs.slice(1);
+      if (doneFlinging()) {
+        lastDemoKeyframe = frameCount;
+      }
     }
   }
 }
@@ -417,7 +513,7 @@ function drawOreoWord() {
   stroke(23,49,86, textOpacity*255);
   textSize(width/12);
   textLeading(width/16);
-  strokeWeight(width/100);
+  strokeWeight(width/80);
   lines = [""];
   for (syllable of oreoState.dunkedDiscs.map(dt => dt == O ? "O" : "RE")) {
     if (textWidth(lines[lines.length - 1]) >= 0.5 * width) {
@@ -426,17 +522,6 @@ function drawOreoWord() {
     lines[lines.length - 1] += syllable; 
   }
   text(lines.join("\n"), width * 0.35, height/2 - (textAscent()*0.2));
-  pop();
-}
-
-// Draw overlay telling user to click in order to resume audio context
-function drawSoundInstructions() {
-  push();
-  background(0, 200);
-  textAlign(CENTER, CENTER);
-  fill(255);
-  textSize(24);
-  text("Click anywhere to continue.", width/2, height/2);
   pop();
 }
 
@@ -453,6 +538,7 @@ function updateTitle() {
 }
 
 function playDisc(discType) {
+  if (demoMode) return;
   switch(discType) {
     case O:
       oSound.play();
@@ -527,6 +613,7 @@ function startFlingingAnimation() {
 function startResetAnimation() {
   sketchState = "RESETTING";
   animationFrame0 = frameCount + 1;
+  updateTitle();
 }
 
 function resetSketch() {
@@ -534,6 +621,7 @@ function resetSketch() {
   updateTitle();
   sketchState = "CONSTRUCTING_OREO";
   dunkButton.html("Dunk?");
+  lastDemoKeyframe = frameCount;
 }
 
 // when you hit the spacebar, what's currently on the canvas will be saved (as a
@@ -548,12 +636,14 @@ function mousePressed() {
   if (getAudioContext().state !== "running") {
     getAudioContext().resume();
   }
+  demoMode = false;
 }
 
 function touchStarted() {
   if (getAudioContext().state !== "running") {
     getAudioContext().resume();
   }
+  demoMode = false;
 }
 
 // Override default swipe behavior (zooming, scrolling)
