@@ -113,7 +113,7 @@ function setupButtons() {
 
   oButton1.position(width * 0.05,0);
   reButton.position(width * 0.14,0);
-  oButton2.position(width * 0.295,0);
+  oButton2.position(width * 0.29,0);
 
   for (let oButton of [oButton1, oButton2]) {
     const mOver = () => {oButton.style("color", O_FILL); oButton.style("background-color", "#ffffff20")};
