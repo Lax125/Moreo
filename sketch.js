@@ -42,15 +42,18 @@ const oreoState = {
   },
   fallingDiscs: [],
   flungDiscs: [],
+  dunkedDiscs: [],
 };
 
 let sketchState = "CONSTRUCTING_OREO";
 let sceneScale;
 let Osound, REsound;
+let oreoWordFont;
 
 function preload() {
-  Osound = loadSound("assets/kick.wav");
-  REsound = loadSound("assets/snare.wav");
+  Osound = loadSound("assets/kick.mp3");
+  REsound = loadSound("assets/snare.mp3");
+  oreoWordFont = loadFont("assets/Kanit-Black.ttf");
 }
 
 function setup() {
@@ -63,6 +66,11 @@ function draw() {
 
   push();
   background(BACKGROUND_COLOR);
+
+  if (sketchState === "FLINGING_OREO") {
+    drawOreoWord();
+  }
+
   let oreoRotation;
   if (sketchState === "CONSTRUCTING_OREO") {
     oreoRotation = OREO_CONSTRUCTION_ROTATION;
@@ -153,6 +161,7 @@ function updateOreoState() {
     }
     if (oreoState.flungDiscs[0].z > 0) {
       playDisc(oreoState.flungDiscs[0].discType);
+      oreoState.dunkedDiscs.push(oreoState.flungDiscs[0].discType);
       oreoState.flungDiscs = oreoState.flungDiscs.slice(1);
     }
   }
@@ -259,6 +268,26 @@ function drawGlass() {
   pop();
 }
 
+function drawOreoWord() {
+  push();
+  textAlign(CENTER, CENTER);
+  textWrap(CHAR);
+  textFont(oreoWordFont);
+  fill(255);
+  stroke(23,49,86);
+  textSize(width/15);
+  strokeWeight(width/100);
+  lines = [""];
+  for (syllable of oreoState.dunkedDiscs.map(dt => dt == O ? "O" : "RE")) {
+    if (textWidth(lines[lines.length - 1]) >= 0.7 * width) {
+      lines.push("");
+    }
+    lines[lines.length - 1] += syllable; 
+  }
+  text(lines.join("\n"), width/2, height/2);
+  pop();
+}
+
 // Draw overlay telling user to click in order to resume audio context
 function drawSoundInstructions() {
   push();
@@ -308,6 +337,7 @@ function clearOreoState() {
   }
   oreoState.fallingDiscs = [];
   oreoState.flungDiscs = [];
+  oreoState.dunkedDiscs = [];
 }
 
 function startRotationAnimation() {

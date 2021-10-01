@@ -32,6 +32,11 @@ assets:
   - comment: Snare drum sound
     url: https://freesound.org/people/sandyrb/sounds/38934/
     licence: Attribution 3.0 Unported (CC BY 3.0)
+  
+  - comment: Font used to display /(O|RE)+/g text
+    url: https://fonts.google.com/specimen/Kanit
+    licence: SIL Open Font License (OFL)
+
 
 # sign *your* name and uid here
 name: Sheng Koh
