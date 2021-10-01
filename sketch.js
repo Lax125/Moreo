@@ -548,19 +548,15 @@ function mousePressed() {
   if (getAudioContext().state !== "running") {
     getAudioContext().resume();
   }
-
-  return false;
 }
 
 function touchStarted() {
-  mousePressed();
-  return false;
+  if (getAudioContext().state !== "running") {
+    getAudioContext().resume();
+  }
 }
 
+// Override default swipe behavior (zooming, scrolling)
 function touchMoved() {
-  return false;
-}
-
-function touchEnded() {
   return false;
 }
