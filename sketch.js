@@ -2,6 +2,7 @@ const O = 0, RE = 1;
 
 // Display constants
 const OREO_CONSTRUCTION_ROTATION = 15;
+const OREO_CONSTRUCTION_ZOOM = 1.3;
 const BACKGROUND_COLOR = "rgb(46,98,174)";
 
 // Disc drawing constants
@@ -78,6 +79,7 @@ let oButton1, reButton, oButton2, dunkButton, resetButton;
 let demoMode = true;
 let lastDemoKeyframe = 0;
 let demoOreoIndex = 0;
+let canvasOffsetY;
 
 function preload() {
   oSound = loadSound("assets/kick.mp3");
@@ -88,7 +90,10 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
+  let canvasHeight = min(windowWidth, windowHeight);
+  const cnv = createCanvas(windowWidth, canvasHeight);
+  canvasOffsetY = (windowHeight-height)/2;
+  cnv.position(0, canvasOffsetY);
   sceneScale = width/100;
   setupButtons();
   resetSketch();
@@ -111,9 +116,9 @@ function setupButtons() {
     button.style("text-shadow", `${width/150}px ${width/150}px 8px #202020`);
   }
 
-  oButton1.position(width * 0.05,0);
-  reButton.position(width * 0.14,0);
-  oButton2.position(width * 0.29,0);
+  oButton1.position(width * 0.05, canvasOffsetY);
+  reButton.position(width * 0.14, canvasOffsetY);
+  oButton2.position(width * 0.29, canvasOffsetY);
 
   for (let oButton of [oButton1, oButton2]) {
     const mOver = () => {oButton.style("color", O_FILL); oButton.style("background-color", "#ffffff20")};
@@ -158,8 +163,8 @@ function setupButtons() {
   dunkButton.style("justify-content", "center");
   dunkButton.style("padding-top", "0");
   dunkButton.style("width", `${width*0.27}px`);
-  dunkButton.style("height", `${width*0.16}px`);
-  dunkButton.position(width*0.685, height - width * 0.14);
+  dunkButton.style("height", `${width*0.14}px`);
+  dunkButton.position(width*0.685, height - width * 0.14 + canvasOffsetY);
 
   const mOverD = () => {dunkButton.style("background-color", "#ffffff20")};
   const mOutD = () => {dunkButton.style("background-color", "transparent")};
@@ -188,8 +193,8 @@ function setupButtons() {
   resetButton.style("justify-content", "center");
   resetButton.style("padding-top", "0");
   resetButton.style("width", `${width*0.27}px`);
-  resetButton.style("height", `${width*0.33}px`);
-  resetButton.position(width*0.685, height - width * 0.34);
+  resetButton.style("height", `${width*0.32}px`);
+  resetButton.position(width*0.685, height - width * 0.33 + canvasOffsetY);
   
   const mOverR = () => {resetButton.style("background-color", "#ffffff20")};
   const mOutR = () => {resetButton.style("background-color", "transparent")};
@@ -226,14 +231,17 @@ function draw() {
   }
 
   let oreoRotation;
+  let oreoZoom;
   if (sketchState === "CONSTRUCTING_OREO") {
     oreoRotation = OREO_CONSTRUCTION_ROTATION;
+    oreoZoom = OREO_CONSTRUCTION_ZOOM;
     translate(width/2, height/2);
   } else if (sketchState === "ROTATING_OREO") {
     const animationFrameNo = frameCount - animationFrame0;
     const animationProgress = constrain(map(animationFrameNo, 0, ROTATION_FRAMES, 0, 1), 0, 1);
     const transitionProgress = sin(90*animationProgress);
     oreoRotation = OREO_CONSTRUCTION_ROTATION + transitionProgress*(90 - OREO_CONSTRUCTION_ROTATION);
+    oreoZoom = map(transitionProgress, 0, 1, OREO_CONSTRUCTION_ZOOM, 1);
     if (animationFrameNo > ROTATION_FRAMES) {
       startFlingingAnimation();
     }
@@ -243,12 +251,13 @@ function draw() {
     );
   } else if (sketchState === "FLINGING_OREO") {
     oreoRotation = 90;
+    oreoZoom = 1;
     translate(0.7*O_DIAMETER*sceneScale, height - 0.7*O_DIAMETER*sceneScale);
     if ((frameCount - animationFrame0) % FLING_PERIOD_FRAMES === 0) {
       flingNextDisc();
     }
   }
-  scale(sceneScale);
+  scale(sceneScale * oreoZoom);
   drawOreoState(oreoRotation);
   pop();
 
@@ -564,7 +573,7 @@ function spawnDisc(discType) {
   angleMode(DEGREES);
   oreoState.fallingDiscs.push({
     // attempt to spawn immediately off-screen
-    y: max(((-height/2)/sceneScale - 3)/cos(OREO_CONSTRUCTION_ROTATION), -200), 
+    y: max(((-height/2)/(sceneScale*OREO_CONSTRUCTION_ZOOM) - 3)/cos(OREO_CONSTRUCTION_ROTATION), -200), 
     dy: INITIAL_FALLING_SPEED/PHYSICS_FRAMERATE,
     discType: discType,
   });
