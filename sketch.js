@@ -374,7 +374,7 @@ function updateOreoState() {
         oreoState.groundedDiscs.dy *= groundedDiscCount/(groundedDiscCount + 2);
         oreoState.groundedDiscs.dy += lowestFallingDisc.dy/(groundedDiscCount + 2);
         oreoState.groundedDiscs.discTypes.push(lowestFallingDisc.discType);
-        oreoState.fallingDiscs = oreoState.fallingDiscs.slice(1);
+        oreoState.fallingDiscs.shift();
         updateTitle();
         playDisc(lowestFallingDisc.discType);
         if (oreoState.groundedDiscs.discTypes.length >= MAX_DISCS) {
@@ -399,8 +399,7 @@ function updateOreoState() {
     }
     if (oreoState.flungDiscs[0].z > 0) {
       playDisc(oreoState.flungDiscs[0].discType);
-      oreoState.dunkedDiscs.push(oreoState.flungDiscs[0].discType);
-      oreoState.flungDiscs = oreoState.flungDiscs.slice(1);
+      oreoState.dunkedDiscs.push(oreoState.flungDiscs.shift().discType);
       if (doneFlinging()) {
         lastDemoKeyframe = frameCount;
       }
